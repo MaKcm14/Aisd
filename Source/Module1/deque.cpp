@@ -8,12 +8,17 @@ public:
     TDeque() = default;
 
     TDeque(size_t size) {
-        Arr.reserve(size);
+        Arr.resize(size);
+        Size = 0;
+        HeadIndex = 0;
+        TailIndex = 0;
     }
 
     TDeque(const TDeque& deque) {
         Arr = std::move(deque.Arr);
-        Arr.reserve(deque.GetCapacity());
+        HeadIndex = deque.HeadIndex;
+        TailIndex = deque.TailIndex;
+        Size = deque.Size;
     }
 
 
@@ -25,57 +30,98 @@ public:
         return Arr.size();
     }
 
-    void Reserve(size_t size) {
-        Arr.reserve(size);
-    }
-
     void Print() const noexcept {
-        for (const auto& elem : Arr) {
-            std::cout << elem << " ";
-        }
-
-        if (Arr.empty()) {
+        if (!Size) {
             std::cout << "empty";
+        } else {
+            for (size_t i = HeadIndex; i != TailIndex; ) {
+                std::cout << Arr[i] << " ";
+                if (i == Arr.size() - 1) {
+                    i = 0;
+                } else {
+                    ++i;
+                }
+            }
+            std::cout << Arr[TailIndex] << " ";
         }
         std::cout << std::endl;
     }
 
     void PushBack(const std::string& elem) noexcept {
-        if (Arr.size() == Arr.capacity()) {
+        if (Arr.size() == Size) {
             std::cout << "overflow" << std::endl;
         } else {
-            Arr.push_back(elem);
+            if (TailIndex == HeadIndex && !Size) {
+                Arr[TailIndex] = elem;
+            } else {
+                ++TailIndex;
+                if (TailIndex == Arr.size()) {
+                    TailIndex = 0;
+                }
+                Arr[TailIndex] = elem;
+            }
+            ++Size;
         }
     }
 
     void PushFront(const std::string& elem) noexcept {
-        if (Arr.size() == Arr.capacity()) {
+        if (Arr.size() == Size) {
             std::cout << "overflow" << std::endl;
         } else {
-            Arr.insert(Arr.begin(), elem);
+            if (TailIndex == HeadIndex && !Size) {
+                Arr[HeadIndex] = elem;
+            } else {
+                --HeadIndex;
+                if (HeadIndex > Arr.size()) {
+                    HeadIndex = Arr.size() - 1;
+                }
+                Arr[HeadIndex] = elem;
+            }
+            ++Size;
         }
     }
 
     void PopBack() noexcept {
-        if (Arr.empty()) {
+        if (!Size) {
             std::cout << "underflow" << std::endl;
         } else {
-            std::cout << Arr.back() << std::endl;
-            Arr.pop_back();
+            std::cout << Arr[TailIndex] << std::endl;
+            --TailIndex;
+            if (TailIndex > Arr.size()) {
+                TailIndex = Arr.size() - 1;
+            }
+            --Size;
         }
     }
 
     void PopFront() noexcept {
-        if (Arr.empty()) {
+        if (!Size) {
             std::cout << "underflow" << std::endl;
         } else {
-            std::cout << Arr.front() << std::endl;
-            Arr.erase(Arr.begin());
+            std::cout << Arr[HeadIndex] << std::endl;
+            ++HeadIndex;
+            if (HeadIndex == Arr.size()) {
+                HeadIndex = 0;
+            }
+            --Size;
         }
     }
 
 
+    TDeque& operator = (TDeque&& deque) {
+        HeadIndex = deque.HeadIndex;
+        TailIndex = deque.TailIndex;
+        Size = deque.Size;
+        Arr = std::move(deque.Arr);
+
+        return *this;
+    }
+
+
 private:
+    size_t HeadIndex; // индекс первого элемента
+    size_t TailIndex; // индекс последнего добавленного элемента
+    size_t Size;
     std::vector<std::string> Arr;
 
 };
@@ -132,7 +178,7 @@ std::pair<TDeque, std::vector<std::pair<std::string, std::string>>> ParseInput()
                 auto reserveNum = ConvertStringToNum(command[1]);
                 
                 if (reserveNum >= 0) {
-                    deque.Reserve(ConvertStringToNum(command[1]));
+                    deque = TDeque(ConvertStringToNum(command[1]));
                     setSizeFlag = true;
                 } else {
                     actions.push_back({ "", "" });
@@ -170,7 +216,6 @@ std::pair<TDeque, std::vector<std::pair<std::string, std::string>>> ParseInput()
 }
 
 int main() {
-    
     auto [deque, actions] = ParseInput();
 
     for (const auto& [action, elem] : actions) {
