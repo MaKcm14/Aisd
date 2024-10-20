@@ -1,4 +1,4 @@
-package main
+package btree
 
 import (
 	"bufio"
@@ -263,7 +263,7 @@ func parseInput(input string) ([]string, error) {
 	}
 }
 
-func main() {
+func Main() {
 	var tree = NewTree()
 	var treeOps = make([][]string, 0, 100)
 	var scanner = bufio.NewScanner(os.Stdin)
