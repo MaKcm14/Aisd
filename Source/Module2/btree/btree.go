@@ -1,8 +1,12 @@
-package btree
+package main
 
 import (
+	"bufio"
 	"fmt"
 	"math"
+	"os"
+	"strconv"
+	"strings"
 )
 
 type NodeSide int16
@@ -30,6 +34,12 @@ type (
 
 func NewTree() Tree {
 	return Tree{}
+}
+
+func New(root *Node) Tree {
+	return Tree{
+		Root: root,
+	}
 }
 
 func (tree *Tree) find(key int64) *Node {
@@ -74,23 +84,6 @@ func (tree *Tree) max(node *Node) (*Node, error) {
 		}
 	}
 	return nil, fmt.Errorf("try to find the max element in the empty binary tree")
-}
-
-func (tree *Tree) successor(node *Node) (*Node, error) {
-	if node == nil {
-		return nil, fmt.Errorf("try to find the successor element for the empty node")
-	}
-
-	if node.Right != nil {
-		return tree.min(node.Right)
-	}
-
-	var successor = node.Parent
-	for successor != nil && node == successor.Right {
-		node = successor
-		successor = successor.Parent
-	}
-	return successor, nil
 }
 
 func (tree *Tree) Add(key int64, val string) error {
@@ -152,8 +145,8 @@ func (tree *Tree) Max() (int64, string, error) {
 	return maxNode.Key, maxNode.Value, err
 }
 
-func (tree *Tree) Delete(key int64) error {
-	if node := tree.find(key); node != nil {
+func (tree *Tree) delete(node *Node) error {
+	if node != nil {
 		side, _ := tree.defineParentSide(node)
 
 		if node.Left == nil && node.Right == nil {
@@ -164,7 +157,7 @@ func (tree *Tree) Delete(key int64) error {
 			} else if side == RightSide {
 				node.Parent.Right = nil
 			}
-		} else if node.Right != nil {
+		} else if node.Right != nil && node.Left == nil {
 			if side == Root {
 				tree.Root = node.Right
 			} else if side == LeftSide {
@@ -172,7 +165,8 @@ func (tree *Tree) Delete(key int64) error {
 			} else if side == RightSide {
 				node.Parent.Right = node.Right
 			}
-		} else if node.Left != nil {
+			node.Right.Parent = node.Parent
+		} else if node.Left != nil && node.Right == nil {
 			if side == Root {
 				tree.Root = node.Left
 			} else if side == LeftSide {
@@ -180,39 +174,23 @@ func (tree *Tree) Delete(key int64) error {
 			} else if side == RightSide {
 				node.Parent.Right = node.Left
 			}
-		} else {
-			successor, _ := tree.successor(node)
-			sucSide, _ := tree.defineParentSide(successor)
-			minSuc, _ := tree.min(successor)
-
-			if side != Root {
-				if sucSide == LeftSide {
-					successor.Parent.Left = nil
-				} else if sucSide == RightSide {
-					successor.Parent.Right = nil
-				}
-				successor.Parent = node.Parent
-				if side == LeftSide {
-					successor.Parent.Left = successor
-				} else if side == RightSide {
-					successor.Parent.Right = successor
-				}
-				minSuc.Left = node.Left
-				node.Left.Parent = minSuc
-			} else {
-				tree.Root.Right.Parent = successor
-				if sucSide == LeftSide {
-					successor.Parent.Left = nil
-				} else if sucSide == RightSide {
-					successor.Parent.Right = nil
-				}
-				successor.Parent = nil
-				minSuc.Left = tree.Root.Left
-				tree.Root.Left.Parent = minSuc
-				tree.Root = successor
-			}
+			node.Left.Parent = node.Parent
 		}
+		return nil
+	}
+	return fmt.Errorf("try to delete the unexisting node")
+}
 
+func (tree *Tree) Delete(key int64) error {
+	if node := tree.find(key); node != nil {
+		if node.Right == nil || node.Left == nil {
+			tree.delete(node)
+		} else {
+			maxNode, _ := tree.max(node.Left)
+			node.Key = maxNode.Key
+			node.Value = maxNode.Value
+			tree.delete(maxNode)
+		}
 		return nil
 	}
 
@@ -230,7 +208,6 @@ func (tree *Tree) print() {
 			if !checkVert {
 				break
 			}
-
 			for _, elems := range buffer {
 				fmt.Print(elems)
 			}
@@ -270,5 +247,93 @@ func (tree *Tree) Print() {
 		tree.print()
 	} else {
 		fmt.Println("_")
+	}
+}
+
+func parseInput(input string) ([]string, error) {
+	var commds = strings.Split(input, " ")
+
+	if len(commds) != 0 && (((commds[0] == "add" || commds[0] == "set") && len(commds) == 3) ||
+		((commds[0] == "delete" || commds[0] == "search") && len(commds) == 2) ||
+		((commds[0] == "print" || commds[0] == "min" || commds[0] == "max") &&
+			len(commds) == 1)) {
+		return commds, nil
+	} else {
+		return nil, fmt.Errorf("error")
+	}
+}
+
+func main() {
+	var tree = NewTree()
+	var treeOps = make([][]string, 0, 100)
+	var scanner = bufio.NewScanner(os.Stdin)
+
+	for scanner.Scan() {
+		var input = scanner.Text()
+
+		if input == "" {
+			continue
+		}
+		commds, err := parseInput(input)
+
+		if err != nil {
+			treeOps = append(treeOps, []string{"error"})
+		} else {
+			treeOps = append(treeOps, commds)
+		}
+	}
+
+	for _, ops := range treeOps {
+		if ops[0] == "add" {
+			key, _ := strconv.Atoi(ops[1])
+			err := tree.Add(int64(key), ops[2])
+
+			if err != nil {
+				fmt.Println("error")
+			}
+		} else if ops[0] == "set" {
+			key, _ := strconv.Atoi(ops[1])
+			err := tree.Set(int64(key), ops[2])
+
+			if err != nil {
+				fmt.Println("error")
+			}
+		} else if ops[0] == "delete" {
+			key, _ := strconv.Atoi(ops[1])
+			err := tree.Delete(int64(key))
+
+			if err != nil {
+				fmt.Println("error")
+			}
+		} else if ops[0] == "search" {
+			key, _ := strconv.Atoi(ops[1])
+			val, err := tree.Search(int64(key))
+
+			if err != nil {
+				fmt.Println("0")
+			} else {
+				fmt.Printf("1 %v\n", val)
+			}
+		} else if ops[0] == "print" {
+			tree.Print()
+		} else if ops[0] == "min" {
+			key, val, err := tree.Min()
+
+			if err != nil {
+				fmt.Println("error")
+			} else {
+				fmt.Printf("%v %v\n", key, val)
+			}
+		} else if ops[0] == "max" {
+			key, val, err := tree.Max()
+
+			if err != nil {
+				fmt.Println("error")
+			} else {
+				fmt.Printf("%v %v\n", key, val)
+			}
+		} else {
+			fmt.Println("error")
+		}
 	}
 }
