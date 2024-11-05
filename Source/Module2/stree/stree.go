@@ -1,10 +1,9 @@
-package stree
+package main
 
 import (
 	"bufio"
 	"errors"
 	"fmt"
-	"math"
 	"os"
 	"strconv"
 	"strings"
@@ -146,31 +145,32 @@ func (tree *Tree) splay(node *Node) error {
 		return errors.New("try to splay the empty vertex (is nil)")
 	}
 
-	nodeSide, _ := tree.defineParentSide(node)
+	for node != tree.Root {
+		nodeSide, _ := tree.defineParentSide(node)
 
-	if nodeSide == LeftSide && node.Parent == tree.Root {
-		tree.rightRotate(node.Parent)
-	} else if nodeSide == RightSide && node.Parent == tree.Root {
-		tree.leftRotate(node.Parent)
-	} else if nodeSide == Root {
-		return nil
-	} else if nodeSide != None {
-		parentSide, _ := tree.defineParentSide(node.Parent)
+		if nodeSide == LeftSide && node.Parent == tree.Root {
+			tree.rightRotate(node.Parent)
+			break
+		} else if nodeSide == RightSide && node.Parent == tree.Root {
+			tree.leftRotate(node.Parent)
+			break
+		} else if nodeSide != None {
+			parentSide, _ := tree.defineParentSide(node.Parent)
 
-		if parentSide == LeftSide && nodeSide == LeftSide {
-			tree.rightRotate(node.Parent.Parent)
-			tree.rightRotate(node.Parent)
-		} else if parentSide == RightSide && nodeSide == RightSide {
-			tree.leftRotate(node.Parent.Parent)
-			tree.leftRotate(node.Parent)
-		} else if parentSide == LeftSide && nodeSide == RightSide {
-			tree.leftRotate(node.Parent)
-			tree.rightRotate(node.Parent)
-		} else if parentSide == RightSide && nodeSide == LeftSide {
-			tree.rightRotate(node.Parent)
-			tree.leftRotate(node.Parent)
+			if parentSide == LeftSide && nodeSide == LeftSide {
+				tree.rightRotate(node.Parent.Parent)
+				tree.rightRotate(node.Parent)
+			} else if parentSide == RightSide && nodeSide == RightSide {
+				tree.leftRotate(node.Parent.Parent)
+				tree.leftRotate(node.Parent)
+			} else if parentSide == LeftSide && nodeSide == RightSide {
+				tree.leftRotate(node.Parent)
+				tree.rightRotate(node.Parent)
+			} else if parentSide == RightSide && nodeSide == LeftSide {
+				tree.rightRotate(node.Parent)
+				tree.leftRotate(node.Parent)
+			}
 		}
-		tree.splay(node)
 	}
 
 	return nil
@@ -212,6 +212,7 @@ func (tree *Tree) Add(key int64, val string) error {
 			} else if curNode.Key < key {
 				curNode = curNode.Right
 			} else {
+				tree.splay(curNode)
 				return fmt.Errorf("try to add the existing node with key %v", key)
 			}
 		}
@@ -247,11 +248,23 @@ func (tree *Tree) Search(key int64) (string, error) {
 
 func (tree *Tree) Min() (int64, string, error) {
 	minNode, err := tree.min(tree.Root)
+
+	if minNode == nil {
+		return 0, "", err
+	}
+
+	tree.splay(minNode)
 	return minNode.Key, minNode.Value, err
 }
 
 func (tree *Tree) Max() (int64, string, error) {
 	maxNode, err := tree.max(tree.Root)
+
+	if maxNode == nil {
+		return 0, "", err
+	}
+
+	tree.splay(maxNode)
 	return maxNode.Key, maxNode.Value, err
 }
 
@@ -307,56 +320,59 @@ func (tree *Tree) Delete(key int64) error {
 	return fmt.Errorf("try to delete the unexisting node with key %v", key)
 }
 
-func (tree *Tree) print() {
-	var checkVert = false
-	var buffer = make([]string, 0, 200)
-	var queue = make([]*Node, 0, 200)
-	queue = append(queue, tree.Root)
+func (tree *Tree) sliceTreeView() [][]*Node {
+	var lvls = make([][]*Node, 0, 20)
+	var curLvl = []*Node{tree.Root}
 
-	for vertCount, lvlNum := 0, 1; len(queue) != 0; vertCount += 2 {
-		if int(math.Pow(2, float64(lvlNum))) == vertCount {
-			if !checkVert {
-				break
+	for checkVertFlag := false; len(curLvl) != 0 && !checkVertFlag; {
+		var nextLvl = make([]*Node, 0, 100)
+		lvls = append(lvls, curLvl)
+
+		checkVertFlag = true
+		for _, node := range curLvl {
+			if node != nil {
+				nextLvl = append(nextLvl, node.Left, node.Right)
+				if node.Left != nil || node.Right != nil {
+					checkVertFlag = false
+				}
+			} else {
+				nextLvl = append(nextLvl, nil, nil)
 			}
-			for _, elems := range buffer {
-				fmt.Print(elems)
-			}
-			fmt.Print("\n")
-			vertCount = 0
-			lvlNum++
-			checkVert = false
-			buffer = buffer[:0]
 		}
 
-		curNode := queue[0]
-		queue = queue[1:]
-
-		if curNode == nil || curNode.Left == nil {
-			buffer = append(buffer, "_ ")
-			queue = append(queue, (*Node)(nil))
-		} else {
-			buffer = append(buffer, fmt.Sprintf("[%v %v %v] ", curNode.Left.Key, curNode.Left.Value, curNode.Key))
-			queue = append(queue, curNode.Left)
-			checkVert = true
-		}
-
-		if curNode == nil || curNode.Right == nil {
-			buffer = append(buffer, "_ ")
-			queue = append(queue, (*Node)(nil))
-		} else {
-			buffer = append(buffer, fmt.Sprintf("[%v %v %v] ", curNode.Right.Key, curNode.Right.Value, curNode.Key))
-			queue = append(queue, curNode.Right)
-			checkVert = true
-		}
+		curLvl = nextLvl
 	}
+	return lvls
 }
 
 func (tree *Tree) Print() {
-	if tree.Root != nil {
-		fmt.Printf("[%v %v]\n", tree.Root.Key, tree.Root.Value)
-		tree.print()
-	} else {
+	if tree.Root == nil {
 		fmt.Println("_")
+		return
+	}
+
+	treeSlice := tree.sliceTreeView()
+	for lvlNum, lvlNodes := range treeSlice {
+		if lvlNum == 0 {
+			fmt.Printf("[%d %s]\n", lvlNodes[0].Key, lvlNodes[0].Value)
+		} else {
+			var lvlView = make([]string, 0, 50)
+			for _, node := range lvlNodes {
+				if node != nil {
+					if node.Parent != nil {
+						lvlView = append(lvlView, fmt.Sprintf("[%d %s %s]", node.Key, node.Value, fmt.Sprintf("%d", node.Parent.Key)))
+					} else {
+						lvlView = append(lvlView, fmt.Sprintf("[%d %s %s]", node.Key, node.Value, "_"))
+					}
+				} else {
+					lvlView = append(lvlView, "_")
+				}
+			}
+			for _, nodeView := range lvlView {
+				fmt.Print(nodeView, " ")
+			}
+			fmt.Print("\n")
+		}
 	}
 }
 
@@ -375,7 +391,7 @@ func parseInput(input string) ([]string, error) {
 
 func Main() {
 	var tree = NewTree()
-	var treeOps = make([][]string, 0, 100)
+	var treeOps = make([][]string, 0, 10000)
 	var scanner = bufio.NewScanner(os.Stdin)
 
 	for scanner.Scan() {
