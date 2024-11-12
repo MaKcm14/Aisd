@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"bytes"
 	"errors"
 	"fmt"
 	"os"
@@ -82,28 +83,23 @@ func (tree *Tree) leftRotate(node *Node) error {
 	if node == nil || node.Right == nil {
 		return errors.New("try to rotate in the left side the empty node (is nil)")
 	}
-
 	nodeSide, _ := tree.defineParentSide(node)
 	changeNode := node.Right
 
-	if nodeSide == LeftSide {
-		node.Parent.Left = changeNode
-	} else if nodeSide == RightSide {
-		node.Parent.Right = changeNode
-	}
 	changeNode.Parent = node.Parent
-
-	node.Parent = changeNode
 	if nodeSide == Root {
 		tree.Root = changeNode
+	} else if nodeSide == LeftSide {
+		node.Parent.Left = changeNode
+	} else {
+		node.Parent.Right = changeNode
 	}
 
+	node.Parent = changeNode
 	node.Right = changeNode.Left
-
 	if changeNode.Left != nil {
 		changeNode.Left.Parent = node
 	}
-
 	changeNode.Left = node
 
 	return nil
@@ -113,28 +109,23 @@ func (tree *Tree) rightRotate(node *Node) error {
 	if node == nil || node.Left == nil {
 		return errors.New("try to rotate in the right side the empty node (is nil)")
 	}
-
 	nodeSide, _ := tree.defineParentSide(node)
 	changeNode := node.Left
 
-	if nodeSide == LeftSide {
-		node.Parent.Left = changeNode
-	} else if nodeSide == RightSide {
-		node.Parent.Right = changeNode
-	}
 	changeNode.Parent = node.Parent
-
-	node.Parent = changeNode
 	if nodeSide == Root {
 		tree.Root = changeNode
+	} else if nodeSide == LeftSide {
+		node.Parent.Left = changeNode
+	} else {
+		node.Parent.Right = changeNode
 	}
 
+	node.Parent = changeNode
 	node.Left = changeNode.Right
-
 	if changeNode.Right != nil {
 		changeNode.Right.Parent = node
 	}
-
 	changeNode.Right = node
 
 	return nil
@@ -268,287 +259,98 @@ func (tree *Tree) Max() (int64, string, error) {
 	return maxNode.Key, maxNode.Value, err
 }
 
-func (tree *Tree) delete(node *Node) error {
-	if node != nil {
-		side, _ := tree.defineParentSide(node)
-
-		if node.Left == nil && node.Right == nil {
-			if side == Root {
-				tree.Root = nil
-			} else if side == LeftSide {
-				node.Parent.Left = nil
-			} else if side == RightSide {
-				node.Parent.Right = nil
-			}
-		} else if node.Right != nil && node.Left == nil {
-			if side == Root {
-				tree.Root = node.Right
-			} else if side == LeftSide {
-				node.Parent.Left = node.Right
-			} else if side == RightSide {
-				node.Parent.Right = node.Right
-			}
-			node.Right.Parent = node.Parent
-		} else if node.Left != nil && node.Right == nil {
-			if side == Root {
-				tree.Root = node.Left
-			} else if side == LeftSide {
-				node.Parent.Left = node.Left
-			} else if side == RightSide {
-				node.Parent.Right = node.Left
-			}
-			node.Left.Parent = node.Parent
-		}
-		return nil
-	}
-	return fmt.Errorf("try to delete the unexisting node")
-}
-
 func (tree *Tree) Delete(key int64) error {
 	if node := tree.find(key); node != nil {
-		if node.Right == nil || node.Left == nil {
-			tree.delete(node)
-		} else {
-			maxNode, _ := tree.max(node.Left)
-			node.Key = maxNode.Key
-			node.Value = maxNode.Value
-			tree.delete(maxNode)
-		}
-		return nil
-	}
+		if node.Left != nil && node.Right != nil {
+			leftTree := Tree{tree.Root.Left}
+			rightTree := Tree{tree.Root.Right}
 
-	return fmt.Errorf("try to delete the unexisting node with key %v", key)
-}
-
-/*
-func (tree *Tree) delete(node *Node) error {
-	if node != nil {
-		side, _ := tree.defineParentSide(node)
-
-		if node.Left == nil && node.Right == nil {
-			if side == Root {
-				tree.Root = nil
-			} else if side == LeftSide {
-				node.Parent.Left = nil
-			} else if side == RightSide {
-				node.Parent.Right = nil
-			}
-		} else if node.Right != nil && node.Left == nil {
-			if side == Root {
-				tree.Root = node.Right
-			} else if side == LeftSide {
-				node.Parent.Left = node.Right
-			} else if side == RightSide {
-				node.Parent.Right = node.Right
-			}
-			node.Right.Parent = node.Parent
-		} else if node.Left != nil && node.Right == nil {
-			if side == Root {
-				tree.Root = node.Left
-			} else if side == LeftSide {
-				node.Parent.Left = node.Left
-			} else if side == RightSide {
-				node.Parent.Right = node.Left
-			}
-			node.Left.Parent = node.Parent
-		}
-		return nil
-	}
-	return fmt.Errorf("try to delete the unexisting node")
-}
-
-func (tree *Tree) Delete(key int64) error {
-	if node := tree.find(key); node != nil {
-		if node.Right == nil || node.Left == nil {
-			tree.delete(node)
-		} else {
-			maxNode, _ := tree.max(node.Left)
-			node.Key = maxNode.Key
-			node.Value = maxNode.Value
-			tree.delete(maxNode)
-		}
-		return nil
-	}
-
-	return fmt.Errorf("try to delete the unexisting node with key %v", key)
-}
-*/
-
-func (tree *Tree) Delete1(key int64) error {
-	if node := tree.find(key); node != nil {
-		leftTree := Tree{tree.Root.Left}
-		rightTree := Tree{tree.Root.Right}
-
-		if leftTree.Root != nil {
 			leftTree.Root.Parent = nil
-		}
 
-		if rightTree.Root != nil {
 			rightTree.Root.Parent = nil
-		}
 
-		tree.Root = nil
+			tree.Root = nil
 
-		maxNode, _ := leftTree.max(leftTree.Root)
+			maxNode, _ := leftTree.max(leftTree.Root)
 
-		leftTree.splay(maxNode)
+			leftTree.splay(maxNode)
 
-		tree.Root = leftTree.Root
+			tree.Root = leftTree.Root
 
-		tree.Root = rightTree.Root
-
-		if rightTree.Root != nil {
+			tree.Root.Right = rightTree.Root
 			rightTree.Root.Parent = tree.Root
-		}
 
+		} else if node.Left == nil && node.Right == nil {
+			tree.Root = nil
+		} else if node.Left == nil || node.Right == nil {
+			if node.Left == nil {
+				tree.Root = node.Right
+			} else if node.Right == nil {
+				tree.Root = node.Left
+			}
+			tree.Root.Parent = nil
+		}
 		return nil
 	}
-
 	return fmt.Errorf("try to delete the unexisting node with key %v", key)
 }
 
-/*
-
-func (tree *Tree) TestPrint() {
+func (tree *Tree) Print() {
 	if tree.Root == nil {
 		fmt.Println("_")
 		return
 	}
 
-	var curLvl = []*Node{tree.Root}
+	var notEmptyPos = map[int]*Node{0: tree.Root} // номер элемента следующего уровня, который не пуст
 	var lvlNum = 0
+	var curLen = 1
+	var res = bytes.Buffer{}
 
-	for checkVertFlag := false; len(curLvl) != 0 && !checkVertFlag; {
-		var nextLvl = make([]*Node, 0, 100)
-		//var lvlView = make([]string, 0, 50)
+	fmt.Printf("[%d %s]", tree.Root.Key, tree.Root.Value)
 
-		for _, node := range curLvl {
-			if lvlNum == 0 {
-				fmt.Printf("[%d %s]", tree.Root.Key, tree.Root.Value)
-			} else if node != nil {
-				fmt.Printf("[%d %s %s] ", node.Key, node.Value, fmt.Sprintf("%d", node.Parent.Key))
+	for checkVertFlag := false; !checkVertFlag; {
+		var nextLvlNotEmptyPos = make(map[int]*Node)
+		checkVertFlag = true
+
+		index := 0
+		for i := 0; i != curLen; i++ {
+			node, isExist := notEmptyPos[i]
+
+			if isExist {
+				if lvlNum != 0 {
+					res.WriteString(fmt.Sprintf("[%d %s %s] ", node.Key, node.Value, fmt.Sprintf("%d", node.Parent.Key)))
+				}
+				if node.Left != nil {
+					checkVertFlag = false
+					nextLvlNotEmptyPos[index] = node.Left
+				}
+				index++
+
+				if node.Right != nil {
+					checkVertFlag = false
+					nextLvlNotEmptyPos[index] = node.Right
+				}
+				index++
+				delete(notEmptyPos, i)
+
 			} else {
-				fmt.Print("_ ")
+				res.WriteString("_ ")
+				index += 2
+			}
+
+			if res.Len() == curLen/2 {
+				fmt.Print(res.String())
+				res.Reset()
 			}
 		}
 		lvlNum++
-		fmt.Print("\n")
+		res.WriteString("\n")
 
-		checkVertFlag = true
-		for _, node := range curLvl {
-			if node != nil {
-				nextLvl = append(nextLvl, node.Left, node.Right)
-				if node.Left != nil || node.Right != nil {
-					checkVertFlag = false
-				}
-			} else {
-				nextLvl = append(nextLvl, nil, nil)
-			}
-		}
-		curLvl = nextLvl
-	}
-}
-*/
+		fmt.Print(res.String())
+		res.Reset()
 
-/*
-func (tree *Tree) sliceTreeView() [][]*Node {
-	var lvls = make([][]*Node, 0, 20)
-	var curLvl = []*Node{tree.Root}
-
-	for checkVertFlag := false; len(curLvl) != 0 && !checkVertFlag; {
-		var nextLvl = make([]*Node, 0, 100)
-		lvls = append(lvls, curLvl)
-
-		checkVertFlag = true
-		for _, node := range curLvl {
-			if node != nil {
-				nextLvl = append(nextLvl, node.Left, node.Right)
-				if node.Left != nil || node.Right != nil {
-					checkVertFlag = false
-				}
-			} else {
-				nextLvl = append(nextLvl, nil, nil)
-			}
-		}
-
-		curLvl = nextLvl
-	}
-	return lvls
-}
-
-func (tree *Tree) Print() {
-	if tree.Root == nil {
-		fmt.Println("_")
-		return
-	}
-
-	treeSlice := tree.sliceTreeView()
-	for lvlNum, lvlNodes := range treeSlice {
-		if lvlNum == 0 {
-			fmt.Printf("[%d %s]\n", lvlNodes[0].Key, lvlNodes[0].Value)
-		} else {
-			for _, node := range lvlNodes {
-				if node != nil {
-					fmt.Printf("[%d %s %s] ", node.Key, node.Value, fmt.Sprintf("%d", node.Parent.Key))
-				} else {
-					fmt.Print("_ ")
-				}
-			}
-			fmt.Print("\n")
-		}
-	}
-}
-*/
-
-func (tree *Tree) sliceTreeView() [][]*Node {
-	var lvls = make([][]*Node, 0, 20)
-	var curLvl = []*Node{tree.Root}
-
-	for checkVertFlag := false; len(curLvl) != 0 && !checkVertFlag; {
-		var nextLvl = make([]*Node, 0, 100)
-		lvls = append(lvls, curLvl)
-
-		checkVertFlag = true
-		for _, node := range curLvl {
-			if node != nil {
-				nextLvl = append(nextLvl, node.Left, node.Right)
-				if node.Left != nil || node.Right != nil {
-					checkVertFlag = false
-				}
-			} else {
-				nextLvl = append(nextLvl, nil, nil)
-			}
-		}
-
-		curLvl = nextLvl
-	}
-	return lvls
-}
-
-func (tree *Tree) Print() {
-	if tree.Root == nil {
-		fmt.Println("_")
-		return
-	}
-
-	treeSlice := tree.sliceTreeView()
-	for lvlNum, lvlNodes := range treeSlice {
-		if lvlNum == 0 {
-			fmt.Printf("[%d %s]\n", lvlNodes[0].Key, lvlNodes[0].Value)
-		} else {
-			var lvlView = make([]string, 0, 50)
-			for _, node := range lvlNodes {
-				if node != nil {
-					lvlView = append(lvlView, fmt.Sprintf("[%d %s %s]", node.Key, node.Value, fmt.Sprintf("%d", node.Parent.Key)))
-				} else {
-					lvlView = append(lvlView, "_")
-				}
-			}
-			for _, nodeView := range lvlView {
-				fmt.Print(nodeView, " ")
-			}
-			fmt.Print("\n")
-		}
+		curLen *= 2
+		notEmptyPos = nextLvlNotEmptyPos
 	}
 }
 
@@ -565,9 +367,8 @@ func parseInput(input string) ([]string, error) {
 	}
 }
 
-func Main() {
+func main() {
 	var tree = NewTree()
-	var treeOps = make([][]string, 0, 10000)
 	var scanner = bufio.NewScanner(os.Stdin)
 
 	for scanner.Scan() {
@@ -576,16 +377,12 @@ func Main() {
 		if input == "" {
 			continue
 		}
-		commds, err := parseInput(input)
+		ops, err := parseInput(input)
 
 		if err != nil {
-			treeOps = append(treeOps, []string{"error"})
-		} else {
-			treeOps = append(treeOps, commds)
+			ops = []string{"error"}
 		}
-	}
 
-	for _, ops := range treeOps {
 		if ops[0] == "add" {
 			key, _ := strconv.Atoi(ops[1])
 			err := tree.Add(int64(key), ops[2])
@@ -593,6 +390,7 @@ func Main() {
 			if err != nil {
 				fmt.Println("error")
 			}
+
 		} else if ops[0] == "set" {
 			key, _ := strconv.Atoi(ops[1])
 			err := tree.Set(int64(key), ops[2])
@@ -600,6 +398,7 @@ func Main() {
 			if err != nil {
 				fmt.Println("error")
 			}
+
 		} else if ops[0] == "delete" {
 			key, _ := strconv.Atoi(ops[1])
 			err := tree.Delete(int64(key))
@@ -607,6 +406,7 @@ func Main() {
 			if err != nil {
 				fmt.Println("error")
 			}
+
 		} else if ops[0] == "search" {
 			key, _ := strconv.Atoi(ops[1])
 			val, err := tree.Search(int64(key))
@@ -616,8 +416,10 @@ func Main() {
 			} else {
 				fmt.Printf("1 %v\n", val)
 			}
+
 		} else if ops[0] == "print" {
 			tree.Print()
+
 		} else if ops[0] == "min" {
 			key, val, err := tree.Min()
 
