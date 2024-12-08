@@ -1,9 +1,10 @@
-package heap
+package main
 
 import (
 	"bufio"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"strconv"
 	"strings"
@@ -61,38 +62,39 @@ func (mheap *MinHeap) Delete(key int) error {
 	return errors.New("try to delete the element with the unexisting key")
 }
 
-func (mheap *MinHeap) Search(key int) string {
+func (mheap *MinHeap) Search(key int) (int, string, bool) {
 	if index, isExist := mheap.lookup[key]; isExist {
-		return fmt.Sprintf("1 %d %s", index, mheap.heap[index].value)
+		return index, mheap.heap[index].value, true
 	}
-	return "0"
+	return -1, "", false
 }
 
-func (mheap *MinHeap) Min() string {
+func (mheap *MinHeap) Min() (int, string, bool) {
 	if len(mheap.heap) != 0 {
-		return fmt.Sprintf("%d %d %s", mheap.heap[0].key, 0, mheap.heap[0].value)
+		return mheap.heap[0].key, mheap.heap[0].value, true
 	}
-	return "error"
+	return -1, "", false
 }
 
-func (mheap *MinHeap) Max() string {
+func (mheap *MinHeap) Max() (int, string, int, bool) {
 	if len(mheap.heap) == 0 {
-		return "error"
+		return -1, "", -1, false
 	}
 
 	maxIndex := 0
-	for i := 1; i < len(mheap.heap); i++ {
+
+	for i := len(mheap.heap) / 2; i != len(mheap.lookup); i++ {
 		if mheap.heap[i].key > mheap.heap[maxIndex].key {
 			maxIndex = i
 		}
 	}
 
-	return fmt.Sprintf("%d %d %s", mheap.heap[maxIndex].key, maxIndex, mheap.heap[maxIndex].value)
+	return mheap.heap[maxIndex].key, mheap.heap[maxIndex].value, maxIndex, true
 }
 
-func (mheap *MinHeap) Extract() string {
+func (mheap *MinHeap) Extract() (int, string, bool) {
 	if len(mheap.heap) == 0 {
-		return "error"
+		return -1, "", false
 	}
 	root := mheap.heap[0]
 
@@ -104,22 +106,22 @@ func (mheap *MinHeap) Extract() string {
 		mheap.heapifyDown(0)
 	}
 
-	return fmt.Sprintf("%d %s", root.key, root.value)
+	return root.key, root.value, true
 }
 
-func (mheap *MinHeap) Print() {
+func (mheap *MinHeap) Print(w io.Writer) {
 	if len(mheap.heap) == 0 {
-		fmt.Println("_")
+		fmt.Fprintln(w, "_")
 		return
 	}
 
-	fmt.Printf("[%v %v]\n", mheap.heap[0].key, mheap.heap[0].value)
+	fmt.Fprintf(w, "[%v %v]\n", mheap.heap[0].key, mheap.heap[0].value)
 
 	level, lastLevel, i := 2, 0, 1
 	for interm := 2; i < len(mheap.heap); i++ {
-		fmt.Printf("[%d %s %d] ", mheap.heap[i].key, mheap.heap[i].value, mheap.heap[(i-1)/2].key)
+		fmt.Fprintf(w, "[%d %s %d] ", mheap.heap[i].key, mheap.heap[i].value, mheap.heap[(i-1)/2].key)
 		if i == level {
-			fmt.Print("\n")
+			fmt.Fprintln(w)
 			lastLevel = level
 			level = level + 2*interm
 			interm *= 2
@@ -128,9 +130,9 @@ func (mheap *MinHeap) Print() {
 
 	if (i - 1) != lastLevel {
 		for ; i <= level; i++ {
-			fmt.Print("_ ")
+			fmt.Fprint(w, "_ ")
 		}
-		fmt.Println()
+		fmt.Fprintln(w)
 	}
 }
 
@@ -179,7 +181,7 @@ func parseInput(input string) ([]string, error) {
 	}
 }
 
-func Main() {
+func main() {
 	var heap = NewMinHeap()
 	var scanner = bufio.NewScanner(os.Stdin)
 
@@ -221,19 +223,43 @@ func Main() {
 
 		} else if ops[0] == "search" {
 			key, _ := strconv.Atoi(ops[1])
-			fmt.Println(heap.Search(key))
+
+			index, val, flagFind := heap.Search(key)
+			if flagFind {
+				fmt.Printf("1 %d %s\n", index, val)
+			} else {
+				fmt.Println("0")
+			}
 
 		} else if ops[0] == "print" {
-			heap.Print()
+			heap.Print(os.Stdout)
 
 		} else if ops[0] == "min" {
-			fmt.Println(heap.Min())
+			key, val, flagFind := heap.Min()
+
+			if flagFind {
+				fmt.Printf("%d %d %s\n", key, 0, val)
+			} else {
+				fmt.Println("error")
+			}
 
 		} else if ops[0] == "max" {
-			fmt.Println(heap.Max())
+			key, val, index, flagFind := heap.Max()
+
+			if flagFind {
+				fmt.Printf("%d %d %s\n", key, index, val)
+			} else {
+				fmt.Println("error")
+			}
 
 		} else if ops[0] == "extract" {
-			fmt.Println(heap.Extract())
+			key, val, flagFind := heap.Extract()
+
+			if flagFind {
+				fmt.Printf("%d %s\n", key, val)
+			} else {
+				fmt.Println("error")
+			}
 
 		} else {
 			fmt.Println("error")

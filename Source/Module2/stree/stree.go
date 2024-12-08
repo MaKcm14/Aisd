@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"strconv"
 	"strings"
@@ -295,9 +296,9 @@ func (tree *Tree) Delete(key int64) error {
 	return fmt.Errorf("try to delete the unexisting node with key %v", key)
 }
 
-func (tree *Tree) Print() {
+func (tree *Tree) Print(w io.Writer) {
 	if tree.Root == nil {
-		fmt.Println("_")
+		fmt.Fprintln(w, "_")
 		return
 	}
 
@@ -306,7 +307,7 @@ func (tree *Tree) Print() {
 	var curLen = 1
 	var res = bytes.Buffer{}
 
-	fmt.Printf("[%d %s]", tree.Root.Key, tree.Root.Value)
+	fmt.Fprintf(w, "[%d %s]", tree.Root.Key, tree.Root.Value)
 
 	for checkVertFlag := false; !checkVertFlag; {
 		var nextLvlNotEmptyPos = make(map[int]*Node)
@@ -339,14 +340,13 @@ func (tree *Tree) Print() {
 			}
 
 			if res.Len() == curLen/2 {
-				fmt.Print(res.String())
+				fmt.Fprint(w, res.String())
 				res.Reset()
 			}
 		}
 		lvlNum++
-		res.WriteString("\n")
 
-		fmt.Print(res.String())
+		fmt.Fprintln(w, res.String())
 		res.Reset()
 
 		curLen *= 2
@@ -418,7 +418,7 @@ func main() {
 			}
 
 		} else if ops[0] == "print" {
-			tree.Print()
+			tree.Print(os.Stdout)
 
 		} else if ops[0] == "min" {
 			key, val, err := tree.Min()

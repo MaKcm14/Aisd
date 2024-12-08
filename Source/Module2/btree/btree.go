@@ -1,8 +1,9 @@
-package btree
+package main
 
 import (
 	"bufio"
 	"fmt"
+	"io"
 	"math"
 	"os"
 	"strconv"
@@ -197,7 +198,7 @@ func (tree *Tree) Delete(key int64) error {
 	return fmt.Errorf("try to delete the unexisting node with key %v", key)
 }
 
-func (tree *Tree) print() {
+func (tree *Tree) print(w io.Writer) {
 	var checkVert = false
 	var buffer = make([]string, 0, 200)
 	var queue = make([]*Node, 0, 200)
@@ -209,9 +210,9 @@ func (tree *Tree) print() {
 				break
 			}
 			for _, elems := range buffer {
-				fmt.Print(elems)
+				fmt.Fprint(w, elems)
 			}
-			fmt.Print("\n")
+			fmt.Fprintln(w)
 			vertCount = 0
 			lvlNum++
 			checkVert = false
@@ -241,12 +242,12 @@ func (tree *Tree) print() {
 	}
 }
 
-func (tree *Tree) Print() {
+func (tree *Tree) Print(w io.Writer) {
 	if tree.Root != nil {
-		fmt.Printf("[%v %v]\n", tree.Root.Key, tree.Root.Value)
-		tree.print()
+		fmt.Fprintf(w, "[%v %v]\n", tree.Root.Key, tree.Root.Value)
+		tree.print(w)
 	} else {
-		fmt.Println("_")
+		fmt.Fprintln(w, "_")
 	}
 }
 
@@ -263,7 +264,7 @@ func parseInput(input string) ([]string, error) {
 	}
 }
 
-func Main() {
+func main() {
 	var tree = NewTree()
 	var treeOps = make([][]string, 0, 100)
 	var scanner = bufio.NewScanner(os.Stdin)
@@ -315,7 +316,8 @@ func Main() {
 				fmt.Printf("1 %v\n", val)
 			}
 		} else if ops[0] == "print" {
-			tree.Print()
+			tree.Print(os.Stdout)
+
 		} else if ops[0] == "min" {
 			key, val, err := tree.Min()
 
