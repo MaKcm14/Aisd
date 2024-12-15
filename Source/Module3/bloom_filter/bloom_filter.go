@@ -15,8 +15,48 @@ var (
 	MersenNum31 uint64 = uint64(math.Pow(2, 31)) - 1
 )
 
+type BitArray struct {
+	array []byte
+}
+
+func NewBitArray(size int64) BitArray {
+	return BitArray{
+		array: make([]byte, (size>>3)+1),
+	}
+}
+
+func (arr *BitArray) Set(index uint64) {
+	byteNum := index / 8
+	elemPos := index % 8
+
+	setNum := byte(math.Pow(2, float64(7-elemPos)))
+	checkSet := arr.array[byteNum] & setNum
+
+	if checkSet == 0 {
+		arr.array[byteNum] += setNum
+	}
+}
+
+func (arr *BitArray) Get(index uint64) int {
+	byteNum := index / 8
+	elemPos := index % 8
+
+	setNum := byte(math.Pow(2, float64(7-elemPos)))
+	checkSet := arr.array[byteNum] & setNum
+
+	if checkSet == 0 {
+		return 0
+	}
+
+	return 1
+}
+
+func (arr *BitArray) IsInit() bool {
+	return !(arr.array == nil)
+}
+
 type BloomFilter struct {
-	buckets     []byte
+	buckets     BitArray
 	apprSize    uint64
 	m           uint64
 	k           uint64
@@ -32,49 +72,56 @@ func NewBloomFilter(n int64, p float64) (BloomFilter, error) {
 		return BloomFilter{}, errors.New("try to create filter with the wrong parameters")
 	}
 
+	primes := calcPrimes()
+
 	return BloomFilter{
 		apprSize:    uint64(n),
 		possibility: p,
 		m:           uint64(m),
 		k:           uint64(k),
-		buckets:     make([]byte, m),
-		primes:      make([]uint64, 0, k),
+		buckets:     NewBitArray(m),
+		primes:      primes,
 	}, nil
 }
 
-func (filter *BloomFilter) calcPrimes() {
-	j, i := uint64(3), uint64(1)
+func calcPrimes() []uint64 {
+	startNum := uint64(2)
+	primes := make([]uint64, 0)
+	nums := make([]uint64, 0, 1000)
 
-	if len(filter.primes) == 0 {
-		filter.primes = append(filter.primes, 2)
-	} else {
-		j = filter.primes[len(filter.primes)-1] + 1
-		i = uint64(len(filter.primes))
+	for i := uint64(0); i != 1000; i++ {
+		nums = append(nums, startNum+i)
 	}
 
-	for ; i < filter.k; j++ {
-		if res := filter.isPrime(j); res {
-			filter.primes = append(filter.primes, j)
-			i++
+	curNum := startNum
+	for curNum*curNum < 1000 {
+		for i := 2*curNum - startNum; i < uint64(len(nums)); i += curNum {
+			if nums[i]%curNum == 0 {
+				nums[i] = 0
+			}
+		}
+
+		for i := uint64(curNum-startNum) + 1; i < uint64(len(nums)); i++ {
+			if nums[i] != 0 {
+				curNum = nums[i]
+				break
+			}
 		}
 	}
-}
 
-func (filter *BloomFilter) isPrime(num uint64) bool {
-	for i := uint64(2); i <= uint64(math.Sqrt(float64(num))); i++ {
-		if num%i == 0 {
-			return false
+	for _, val := range nums {
+		if val != 0 {
+			primes = append(primes, val)
 		}
 	}
-	return true
+
+	return primes
 }
 
 func (filter *BloomFilter) Add(key uint64) error {
-	if filter.buckets == nil {
+	if !filter.buckets.IsInit() {
 		return errors.New("try to add the element to uninitialized bloom filter")
 	}
-
-	filter.calcPrimes()
 
 	for i := uint64(0); i != filter.k; i++ {
 		bucketNum := (((i + 1) % MersenNum31) * (key % MersenNum31)) % MersenNum31
@@ -82,17 +129,16 @@ func (filter *BloomFilter) Add(key uint64) error {
 		bucketNum %= MersenNum31
 		bucketNum %= filter.m
 
-		filter.buckets[bucketNum] = 1
+		filter.buckets.Set(bucketNum)
 	}
 
 	return nil
 }
 
 func (filter *BloomFilter) Search(key uint64) (bool, error) {
-	if filter.buckets == nil {
+	if !filter.buckets.IsInit() {
 		return false, errors.New("try to search the element in the uninitialized bloom filter")
 	}
-	filter.calcPrimes()
 
 	for i := uint64(0); i != filter.k; i++ {
 		bucketNum := (((i + 1) % MersenNum31) * (key % MersenNum31)) % MersenNum31
@@ -100,7 +146,7 @@ func (filter *BloomFilter) Search(key uint64) (bool, error) {
 		bucketNum %= MersenNum31
 		bucketNum %= filter.m
 
-		if res := filter.buckets[bucketNum]; res == 0 {
+		if res := filter.buckets.Get(bucketNum); res == 0 {
 			return false, nil
 		}
 	}
@@ -108,12 +154,12 @@ func (filter *BloomFilter) Search(key uint64) (bool, error) {
 }
 
 func (filter *BloomFilter) Print(w io.Writer) error {
-	if filter.buckets == nil {
+	if !filter.buckets.IsInit() {
 		return errors.New("try to print the unitialized bloom filter")
 	}
 
-	for _, elem := range filter.buckets {
-		fmt.Fprint(w, elem)
+	for i := uint64(0); i != filter.m; i++ {
+		fmt.Fprint(w, filter.buckets.Get(i))
 	}
 	fmt.Fprintln(w)
 
