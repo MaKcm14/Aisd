@@ -24,7 +24,7 @@ func (b *Btree[KeyType]) Find(key KeyType) (bool, any) {
 			}
 			if i == 0 && node.childs[i].data.key > key ||
 				i == len(node.childs)-1 && node.childs[i].data.key < key ||
-				(i != 0 && node.childs[i-1].data.key < key && node.childs[i+1].data.key < key) {
+				(i != 0 && node.childs[i-1].data.key < key && node.childs[i].data.key < key) {
 				node = node.childs[i].ptr
 				break
 			}
