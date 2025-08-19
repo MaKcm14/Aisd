@@ -32,7 +32,8 @@ type child[KeyType KeyComparable] struct {
 // node defines the node of the btree.
 type node[KeyType KeyComparable] struct {
 	// childs defines the every node's child.
-	childs []child[KeyType]
+	childs  []child[KeyType]
+	pParent *node[KeyType]
 }
 
 func newNode[KeyType KeyComparable](factor int) *node[KeyType] {
@@ -49,4 +50,13 @@ func (n node[KeyType]) isLeaf() bool {
 		}
 	}
 	return true
+}
+
+// updayeChildsParent defines the logic of updating the child's parent ptr to the current node.
+func (n *node[KeyType]) updateChildsParent() {
+	for _, child := range n.childs {
+		if child.ptr != nil {
+			child.ptr.pParent = n
+		}
+	}
 }
