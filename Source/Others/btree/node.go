@@ -53,10 +53,20 @@ func (n node[KeyType]) isLeaf() bool {
 }
 
 // updayeChildsParent defines the logic of updating the child's parent ptr to the current node.
-func (n *node[KeyType]) updateChildsParent() {
+func (n *node[KeyType]) updateChildsParent(pParent *node[KeyType]) {
 	for _, child := range n.childs {
 		if child.ptr != nil {
-			child.ptr.pParent = n
+			child.ptr.pParent = pParent
 		}
 	}
+}
+
+// getKeyAmount returns the amount of the node's key.
+func (n *node[KeyType]) getKeyAmount() int {
+	if l := len(n.childs); l != 0 && n.childs[l-1].flagRightTreePtr {
+		return l - 1
+	} else if l == 0 {
+		return 0
+	}
+	return len(n.childs)
 }
