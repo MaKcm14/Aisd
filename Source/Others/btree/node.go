@@ -52,11 +52,11 @@ func (n node[KeyType]) isLeaf() bool {
 	return true
 }
 
-// updayeChildsParent defines the logic of updating the child's parent ptr to the current node.
+// updayeChildsParent defines the logic of updating the child's parent ptr to the pParent node.
 func (n *node[KeyType]) updateChildsParent(pParent *node[KeyType]) {
-	for _, child := range n.childs {
-		if child.ptr != nil {
-			child.ptr.pParent = pParent
+	for i := 0; i != len(n.childs); i++ {
+		if n.childs[i].ptr != nil {
+			n.childs[i].ptr.pParent = pParent
 		}
 	}
 }

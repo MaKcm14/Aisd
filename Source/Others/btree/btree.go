@@ -50,7 +50,7 @@ func (b *Btree[KeyType]) updateRoot(nodeLeft, nodeRight *node[KeyType], nodeMedi
 		flagRightTreePtr: true,
 	})
 
-	b.root.updateChildsParent(newRoot)
+	newRoot.updateChildsParent(newRoot)
 	b.root = newRoot
 }
 
@@ -97,15 +97,7 @@ func (b *Btree[KeyType]) splitNode(node *node[KeyType]) (*node[KeyType], *node[K
 	}
 
 	if node.pParent != nil {
-		if node.pParent.getKeyAmount() < 2*b.factor-1 {
-			b.addMedianToParent(node.pParent, nodeLeft, nodeRight, nodeMedian)
-		} else {
-			pParentLeft, pParentRight := b.splitNode(node.pParent)
-			_, _ = pParentLeft, pParentRight
-
-			// TODO: add the logic of dividing the parent and spliting the current node.
-			// Don't forget about the pointers rereference.
-		}
+		b.addMedianToParent(node.pParent, nodeLeft, nodeRight, nodeMedian)
 	} else {
 		b.updateRoot(nodeLeft, nodeRight, nodeMedian)
 	}
@@ -115,28 +107,9 @@ func (b *Btree[KeyType]) splitNode(node *node[KeyType]) (*node[KeyType], *node[K
 
 // Add defines the logic of adding the key into the btree with the current key and val.
 func (b *Btree[KeyType]) Add(key KeyType, val any) {
-	node := b.root
-	for node.isLeaf() {
-		for i := 0; i != len(node.childs); i++ {
-			if i == 0 && node.childs[i].data.key > key ||
-				(i != 0 && node.childs[i-1].data.key <= key && node.childs[i].data.key < key) ||
-				node.childs[i].flagRightTreePtr {
-				node = node.childs[i].ptr
-				break
-			}
-		}
-	}
-
-	pLeft, pRight := b.splitNode(node)
-
-	if pLeft != nil && pRight != nil {
-		// TODO: define the needed node (pLeft, pRight) and
-		// add here adding the data{key, val} to the node's childs
-		// one of two (pLeft, pRight).
-	} else {
-		// TODO: add here adding the data{key, val} to the node's childs
-		// when there wasn't any split.
-	}
+	// TODO: add the logic of searching the leaf with splitting the
+	// nodes on the path.
+	// Then insert key into the leaf and splitNode if it needs.
 }
 
 func (b *Btree[KeyType]) Delete(key KeyType) {
